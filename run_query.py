@@ -10,7 +10,7 @@ from omagent_core.utils.registry import registry
 def run_agent(task):
     logging.init_logger("omagent", "omagent", level="INFO")
     registry.import_module(project_root=Path(__file__).parent, custom=["./engine"])
-    bot_builder = Builder.from_file("workflows/video_understanding")
+    bot_builder = Builder.from_file("workflows/knowledge_graph")
     input = DnCInterface(bot_id="1", task=AgentTask(id=0, task=task))
 
     bot_builder.run_bot(input)

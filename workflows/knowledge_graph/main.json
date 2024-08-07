@@ -1,0 +1,6 @@
+{
+    "name": "KGPreprocessor",
+    "next_step": "",
+    "llm": "%% gpt4o",
+    "use_cache": true
+}

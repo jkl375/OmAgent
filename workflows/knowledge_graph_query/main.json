@@ -1,0 +1,6 @@
+{
+    "name": "KGExtractEntityProcess",
+    "next_step": "",
+    "llm": "%% gpt",
+    "use_cache": true
+}
