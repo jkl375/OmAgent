@@ -11,18 +11,29 @@ import time
 
 # from FormatResp import print_resp, result_to_df_buildin, result_to_df
 import pandas as pd
-
+from typing import Dict
+from nebula3.data.DataObject import Value, ValueWrapper
+from nebula3.data.ResultSet import ResultSet
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
 
-dic = json.load(open("res.json", "r"))
-relationships = list(set([each["type"] for each in dic["relationships"]]))
-# for each in dic["relationships"]:
-#     print(each)
-#     each["type"]
-# exit()
-nodes = list(set([each["label"] for each in dic["nodes"]]))
+# dic = json.load(open("res.json", "r"))
+# relationships = list(set([each["type"] for each in dic["relationships"]]))
 
+# nodes = list(set([each["label"] for each in dic["nodes"]]))
+
+def result_to_df(result: ResultSet) -> pd.DataFrame:
+    """
+    build list for each column, and transform to dataframe
+    """
+    assert result.is_succeeded()
+    columns = result.keys()
+    d: Dict[str, list] = {}
+    for col_num in range(result.col_size()):
+        col_name = columns[col_num]
+        col_list = result.column_values(col_name)
+        d[col_name] = [x.cast() for x in col_list]
+    return pd.DataFrame(d)
 
 if __name__ == "__main__":
     client = None
@@ -37,10 +48,14 @@ if __name__ == "__main__":
         client = connection_pool.get_session("root", "nebula")
         assert client is not None
 
-        # get the result in json format
-        resp_json = client.execute_json("yield 1")
-        json_obj = json.loads(resp_json)
-        print(json.dumps(json_obj, indent=2, sort_keys=True))
+
+
+        client.execute("USE rag_test;")
+
+        resp = client.execute('GET SUBGRAPH WITH PROP 1 STEPS FROM "国家卫生健康委" YIELD VERTICES AS nodes, EDGES AS relationships;')
+        # assert resp.is_succeeded(), resp.error_msg()
+        res = result_to_df(resp)
+        exit()
 
         client.execute(
             "CREATE SPACE IF NOT EXISTS rag_test(vid_type=FIXED_STRING(256)); USE rag_test;"

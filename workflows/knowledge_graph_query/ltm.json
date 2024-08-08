@@ -1,0 +1,10 @@
+[
+    {
+        "name": "NebulaHandler",
+        "db": "rag_test",
+        "user": "root",
+        "password": "nebula",
+        "host": "127.0.0.1",
+        "port": 9669
+    }
+]
