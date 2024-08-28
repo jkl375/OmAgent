@@ -1,0 +1,6 @@
+{
+    "name": "RagR2baseUploadPreprocessor",
+    "next_step": "",
+    "llm": "%% gpt4o",
+    "use_cache": true
+}

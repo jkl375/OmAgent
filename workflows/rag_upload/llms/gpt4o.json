@@ -1,0 +1,9 @@
+{
+    "name": "OpenaiGPTLLM",
+    "model_id": "gpt-3.5-turbo",
+    "api_key": "sk-2fpMc0GBGTGG96w62cF7B9621bA34aDa8b2112D26404Ae4e",
+    "endpoint": "http://10.8.21.32:3000/v1",
+    "temperature": 0,
+    "vision": true,
+    "use_default_sys_prompt": false
+  }

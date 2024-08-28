@@ -1,5 +1,5 @@
 {
-    "name": "KGPreprocessor",
+    "name": "RagQueryPreprocessor",
     "next_step": "",
     "llm": "%% gpt4o",
     "use_cache": true

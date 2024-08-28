@@ -6,6 +6,7 @@ import copy
 import requests
 import json
 from tqdm import tqdm
+import time
 from omagent_core.core.llm.base import BaseLLMBackend
 from omagent_core.core.node.base import BaseProcessor
 from omagent_core.core.prompt.parser import DictParser
@@ -56,10 +57,11 @@ class KGExtractEntityProcess(BaseLLMBackend, BaseProcessor):
         return md5_hash.hexdigest()
     
     def bge_rerank(self, query, input_list):
+        # 对query和input_list中的每个input进行rerank
         text = []
         for input in input_list:
             text.append([query, input])
-        url = "http://172.16.36.38:3602/clip/v2/serving/ranker_encode"
+        url = "http://172.16.36.38:3603/clip/v2/serving/ranker_encode"
         body = {
             "model_id": "rerank",
             "text": text
@@ -69,12 +71,25 @@ class KGExtractEntityProcess(BaseLLMBackend, BaseProcessor):
         # features是一个一维列表，返回值最大前10个的索引
         return sorted(range(len(features)), key=lambda k: features[k], reverse=True)[:10]
 
+    def bge_encode(self, text):
+        url = "http://172.16.36.38:3603/clip/v2/serving/text_encode"
+        body = {
+            "model_id": "bge",
+            "text": [
+                text
+            ]
+        }
+        resp = requests.post(url=url, json=body).json()
+        return resp["features"][0]
+    
+
     def _run(self, args: BaseInterface, ltm: LTM) -> BaseInterface:
         qas = json.load(open(args.task.task))
         querys = [qa["questions"] for qa in qas]
         recalls = json.load(open("data/crud_rag_recalls.json"))["recalls"]
         results = []
         for query in tqdm(querys):
+            s = time.time()
             chat_complete_res = self.infer(
                             input_list=[
                                 {
@@ -85,13 +100,31 @@ class KGExtractEntityProcess(BaseLLMBackend, BaseProcessor):
             resp = PARSER.parse(
                             chat_complete_res[0]["choices"][0]["message"]["content"]
                         )
+            print("llm infer time", time.time()-s)
             Pages = []
             for node in resp["nodes"]:
-                resp = ltm.NebulaHandler.query_data(f'GET SUBGRAPH WITH PROP 1 STEPS FROM "{node}" YIELD VERTICES AS nodes, EDGES AS relationships;')
-                for related_nodes in resp["nodes"]:
-                    if "sources" in related_nodes["props"]:
-                        pages = [int(page) for page in related_nodes["props"]["sources"].split(",")]
-                        Pages.extend(pages)
+                s1 = time.time()
+                vector = self.bge_encode(node)
+                s2 = time.time()
+                print("bge encode time", s2-s1)
+                search_query = {"match": {"text_vector": {"value": vector, "threshold": 0.5}}, "size": 5, "include": ["node_name", "chunk_id"]}
+                r2_resp = ltm.R2BaseHandler.query(
+                    search_query=search_query,
+                    index_id="kg_test"
+                    )
+                s3 = time.time()
+                print("r2base query time", s3-s2)
+                # if len(r2_resp) > 0:
+                #     node = r2_resp[0]["_source"]["node_name"]
+                # else:
+                #     continue
+                for _source in r2_resp:
+                    node = _source["_source"]["node_name"]
+                    resp = ltm.NebulaHandler.query_data(f'GET SUBGRAPH WITH PROP 1 STEPS FROM "{node}" YIELD VERTICES AS nodes, EDGES AS relationships;')
+                    for related_nodes in resp["nodes"]:
+                        if "sources" in related_nodes["props"]:
+                            pages = [int(page) for page in related_nodes["props"]["sources"].split(",")]
+                            Pages.extend(pages)
             Pages = list(set(Pages))
             select_recalls = [recalls[i] for i in Pages]
             rerank_indexs = self.bge_rerank(query, select_recalls)
